@@ -1,0 +1,14 @@
+# Find username which duplicate 8 first characters with other account
+
+#!/bin/bash
+for i in $(ls -1 /var/cpanel/users | awk 'length($0) > 8')
+do
+    CHECK_USER=`echo $i | cut -c1-8`
+    CHECK_DUP=`ls -1 /var/cpanel/users | grep -wc ${CHECK_USER}`
+    if [ ${CHECK_DUP} -ge 1 ]
+    then
+        echo $CHECK_USER
+        echo $i
+        echo "---"
+    fi
+done
