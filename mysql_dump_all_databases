@@ -1,0 +1,31 @@
+#!/bin/bash
+GREEN='\e[92m'
+RED='\e[31m'
+REMOVE='\e[0m'
+i=0
+j=0
+
+rm -f /tmp/error_db_sql.txt
+for k in $(ls -1 -d /var/lib/mysql/*/ | cut -d"/" -f5 | grep -v -e mysql -e da_roundcube -e performance_schema)
+do
+    echo -e "Dumping database ${GREEN}$k${REMOVE} ..."
+    if mysqldump $k > $k.sql 2>log_err.txt
+    then
+        echo -e ${GREEN}Success${REMOVE}
+        ((i++))
+    else
+        echo -e ${RED}Error${REMOVE}
+        ((j++))
+        echo $k >> /tmp/error_db_sql.txt
+    fi
+done
+echo "---"
+echo "Success:$i"
+echo "Error  :$j"
+if [ $j -gt 0 ]
+then
+    echo ""
+    echo "List error database:"
+    cat /tmp/error_db_sql.txt
+    rm -f /tmp/error_db_sql.txt
+fi
