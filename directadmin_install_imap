@@ -1,0 +1,84 @@
+#!/bin/bash
+# Set variables
+CUSTOMBUILD=/usr/local/directadmin/custombuild
+OPTIONS=/usr/local/directadmin/custombuild/options.conf
+IMAP_VERSION=2007f
+
+# Config default PHP
+php1_config(){
+    PHP1_CONFIG=`$CUSTOMBUILD/build used_configs | grep "PHP (default) configuration file:" | cut -d" " -f5`
+    HANDLER1=`echo $PHP1_CONFIG | cut -d"/" -f7`
+    PHP1_FILE=`echo $PHP1_CONFIG | cut -d"/" -f8`
+    [ ! -d $CUSTOMBUILD/custom/$HANDLER1 ] && mkdir -p $CUSTOMBUILD/custom/$HANDLER1
+    if [ ! -f $CUSTOMBUILD/custom/$HANDLER1/$PHP1_FILE ]
+    then
+        cp $CUSTOMBUILD/configure/$HANDLER1/$PHP1_FILE $CUSTOMBUILD/custom/$HANDLER1/$PHP1_FILE
+    fi
+    sed -i "s/--with-openssl.*/--with-openssl --with-imap=\/usr\/local\/imap-$IMAP_VERSION --with-imap-ssl \\\/" $CUSTOMBUILD/custom/$HANDLER1/$PHP1_FILE
+}
+
+# Config second PHP (if have)
+php2_config(){
+    PHP2_CONFIG=`$CUSTOMBUILD/build used_configs | grep "PHP (additional) configuration file:" | cut -d" " -f5`
+    if [ ! -z $PHP2_CONFIG ]
+    then
+        HANDLER2=`echo $PHP2_CONFIG | cut -d"/" -f7`
+        PHP2_FILE=`echo $PHP2_CONFIG | cut -d"/" -f8`
+        [ ! -d $CUSTOMBUILD/custom/$HANDLER2 ] && mkdir -p $CUSTOMBUILD/custom/$HANDLER2
+        if [ ! -f $CUSTOMBUILD/custom/$HANDLER2/$PHP2_FILE ]
+        then
+            cp $CUSTOMBUILD/configure/$HANDLER2/$PHP2_FILE $CUSTOMBUILD/custom/$HANDLER2/$PHP2_FILE
+        fi
+        sed -i "s/--with-openssl.*/--with-openssl --with-imap=\/usr\/local\/imap-$IMAP_VERSION --with-imap-ssl \\\/" $CUSTOMBUILD/custom/$HANDLER2/$PHP2_FILE
+    fi
+}
+
+# Choose PHP version to complie with imap
+PHP1=`cat $CUSTOMBUILD/options.conf | grep "php1_release" | cut -d"=" -f2`
+PHP1_HANDLER=`cat $CUSTOMBUILD/options.conf | grep "php1_mode" | cut -d"=" -f2`
+PHP2=`cat $CUSTOMBUILD/options.conf | grep "php2_release" | cut -d"=" -f2`
+PHP2_HANDLER=`cat $CUSTOMBUILD/options.conf | grep "php2_mode" | cut -d"=" -f2`
+
+clear
+echo "Your PHP config:"
+echo "PHP1: $PHP1 - Handler: $PHP1_HANDLER"
+[ $PHP2 != "no" ] && echo "PHP2: $PHP2 - Handler: $PHP2_HANDLER"
+echo ""
+echo "Which PHP version do you want to complie with imap?"
+echo "1) PHP $PHP1"
+if [ $PHP2 != "no" ]
+then
+    echo "2) PHP $PHP2"
+    echo "*) Press ANY key to complile all"
+fi
+read -p "Your choice: " CHOICE
+case $CHOICE in
+    1) php1_config;;
+	2) php2_config;;
+	*) php1_config; php2_config;;
+esac
+
+# Download imap	
+yum -y install pam-devel
+cd /usr/local
+wget -O imap-$IMAP_VERSION.tar.gz http://files.directadmin.com/services/all/imap/imap-$IMAP_VERSION.tar.gz
+if [ ! -s imap-$IMAP_VERSION.tar.gz ]; then
+        echo "Cannot find imap-$IMAP_VERSION.tar.gz for extraction";
+        exit 1;
+fi
+tar xvzf imap-$IMAP_VERSION.tar.gz
+cd imap-$IMAP_VERSION
+make lr5 EXTRACFLAGS=-fPIC
+mkdir lib
+mkdir include
+cp c-client/*.c lib/
+cp c-client/*.h include/
+cp c-client/c-client.a lib/libc-client.a
+
+# Complie PHP
+cd $CUSTOMBUILD
+./build php n
+
+# Remove imap download
+rm -rf /usr/local/imap-$IMAP_VERSION
+rm -f /usr/local/imap-$IMAP_VERSION.tar.gz
