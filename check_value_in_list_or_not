@@ -1,0 +1,10 @@
+List_VAR=(1 111 12 1234)
+echo "List: 1, 111, 12, 1234"
+read -p "Try one number(1 in list & 11 not in list): " VAR
+VAR2=\\b${VAR}\\b
+if [[ ${List_VAR[*]} =~ ${VAR2} ]]
+then
+    echo "${VAR} is in list"
+else
+    echo "${VAR} is NOT in list"
+fi
