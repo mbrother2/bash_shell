@@ -1,0 +1,136 @@
+#!/bin/bash
+
+GREEN='\e[32m'
+RED='\e[31m'
+YELLOW='\e[33m'
+REMOVE='\e[0m'
+
+#TODAY=`date +"[ %d-%m-%Y ]"`
+L_MAX_USER="12"
+L_MAX_OWNER="12"
+L_MAX_PLAN="16"
+L_MAX_PLAN_BW="12"
+L_MAX_USER_BW="12"
+
+O_BWE=`echo $* | grep -c "bwe"`
+O_BWU=`echo $* | grep -c "bwu"`
+O_DE=`echo $* | grep -c "de"`
+O_DU=`echo $* | grep -c "du"`
+
+rm -f /tmp/check_bwu_a1b2c3d4 /tmp/check_bwe_a1b2c3d4 /tmp/check_de_a1b2c3d4 /tmp/check_du_a1b2c3d4
+
+printf_s(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s ' $(seq 1 $1)
+    fi
+}
+
+printf "Running... Please wait"
+for i in 1 2 3
+do
+    printf "."
+    sleep 1
+done
+
+for i in $(ls -1 /var/cpanel/users | grep -v "^system$")
+do
+    OWNER=`cat /var/cpanel/users/$i | grep "^OWNER=" | cut -d "=" -f 2`
+    PLAN=`cat /var/cpanel/users/$i | grep "^PLAN=" | cut -d"=" -f2`
+    USER_BW=`cat /var/cpanel/users/$i | grep "^BWLIMIT=" | cut -d"=" -f2`
+    USER_DISK=`cat /var/cpanel/users/$i | grep "^DISK_BLOCK_LIMIT=" | cut -d"=" -f2`
+    [[ -f "/var/cpanel/packages/${PLAN}" ]] && PLAN_BW=`cat "/var/cpanel/packages/${PLAN}" | grep "^BWLIMIT=" | cut -d"=" -f2` || PLAN_BW=0
+    [[ -f "/var/cpanel/packages/${PLAN}" ]] && PLAN_DISK=`cat "/var/cpanel/packages/${PLAN}" | grep "^QUOTA=" | cut -d"=" -f2` || PLAN_DISK=0
+
+    if [ "${USER_BW}" == "unlimited" ]
+    then
+        [[ ${O_BWU} -ne 0 ]] && echo $i >> /tmp/check_bwu_a1b2c3d4
+    else
+        USER_BW=`expr ${USER_BW} / 1048576`
+        if [[ "${USER_BW}" != "${PLAN_BW}" ]] && [[ "${PLAN_BW}" != "unlimited" ]]
+        then
+            if [ ${O_BWE} -ne 0 ]
+            then
+                L_USER=$(expr ${L_MAX_USER} - ${#i})
+                L_OWNER=$(expr ${L_MAX_OWNER} - ${#OWNER})
+                L_PLAN=$(expr ${L_MAX_PLAN} - ${#PLAN})
+                L_PLAN_BW=$(expr ${L_MAX_PLAN_BW} - ${#PLAN_BW})
+                L_USER_BW=$(expr ${L_MAX_USER_BW} - ${#USER_BW})
+                echo "$i`printf_s ${L_USER}` ${OWNER}`printf_s ${L_OWNER}`  ${PLAN}`printf_s ${L_PLAN}` ${PLAN_BW}`printf_s ${L_PLAN_BW}` ${USER_BW}" >> /tmp/check_bwe_a1b2c3d4
+            fi
+        fi
+    fi
+    if [ ${USER_DISK} -eq 0 ]
+    then
+        [[ ${O_DU} -ne 0 ]] && echo $i >> /tmp/check_du_a1b2c3d4
+    else
+        USER_DISK=`expr ${USER_DISK} / 1024`
+        if [ "${USER_DISK}" != "${PLAN_DISK}" ]
+        then
+            if [ ${O_DE} -ne 0 ]
+            then
+                L_USER=$(expr ${L_MAX_USER} - ${#i})
+                L_OWNER=$(expr ${L_MAX_OWNER} - ${#OWNER})
+                L_PLAN=$(expr ${L_MAX_PLAN} - ${#PLAN})
+                L_PLAN_DISK=$(expr ${L_MAX_PLAN_BW} - ${#PLAN_DISK})
+                L_USER_USER_DISK=$(expr ${L_MAX_USER_BW} - ${#USER_DISK})
+                echo "$i`printf_s ${L_USER}` ${OWNER}`printf_s ${L_OWNER}`  ${PLAN}`printf_s ${L_PLAN}` ${PLAN_DISK}`printf_s ${L_PLAN_DISK}` ${USER_DISK}" >> /tmp/check_de_a1b2c3d4
+            fi
+        fi
+    fi
+done
+
+show_bw_exceed(){
+    echo ""
+    if [ -f /tmp/check_bwe_a1b2c3d4 ]
+    then
+        echo -e "${YELLOW}User with not exactly bandwidth:${REMOVE}"
+        echo "user`printf_s $(expr ${L_MAX_USER} - 4)` owner`printf_s $(expr ${L_MAX_OWNER} - 4)` package`printf_s $(expr ${L_MAX_PLAN} - 7)` bw package`printf_s $(expr ${L_MAX_USER_BW} - 10)` bw limit"
+        echo "----`printf_s $(expr ${L_MAX_USER} - 4)` -----`printf_s $(expr ${L_MAX_OWNER} - 4)` -------`printf_s $(expr ${L_MAX_PLAN} - 7)` ----------`printf_s $(expr ${L_MAX_USER_BW} - 10)` --------"
+        cat /tmp/check_bwe_a1b2c3d4
+    else
+        echo -e "${GREEN}Congratulation! All users have exactly bandwidth!${REMOVE}"
+    fi
+}
+
+show_bw_unlimited(){
+    echo ""
+    if [ -f /tmp/check_bwu_a1b2c3d4 ]
+    then
+        echo -e "${RED}User with unlimited bandwidth:${REMOVE}"
+        cat /tmp/check_bwu_a1b2c3d4
+    else
+        echo -e "${GREEN}Congratulation! DO NOT have user with unlimited bandwidth!${REMOVE}"
+    fi
+}
+
+show_disk_exceed(){
+    echo ""
+    if [ -f /tmp/check_de_a1b2c3d4 ]
+    then
+        echo -e "${YELLOW}User with not exactly disk:${REMOVE}"
+        echo "user`printf_s $(expr ${L_MAX_USER} - 4)` owner`printf_s $(expr ${L_MAX_OWNER} - 4)` disk`printf_s $(expr ${L_MAX_PLAN} - 4)` disk package`printf_s $(expr ${L_MAX_USER_BW} - 12)` disk limit"
+        echo "----`printf_s $(expr ${L_MAX_USER} - 4)` -----`printf_s $(expr ${L_MAX_OWNER} - 4)` ----`printf_s $(expr ${L_MAX_PLAN} - 4)` ------------`printf_s $(expr ${L_MAX_USER_BW} - 12)` --------"
+        cat /tmp/check_de_a1b2c3d4
+    else
+        echo -e "${GREEN}Congratulation! All users have exactly disk space!${REMOVE}"
+    fi
+}
+
+show_disk_unlimited(){
+    echo ""
+    if [ -f /tmp/check_du_a1b2c3d4 ]
+    then
+        echo -e "${RED}User with unlimited disk space:${REMOVE}"
+        cat /tmp/check_du_a1b2c3d4
+    else
+        echo -e "${GREEN}Congratulation! DO NOT have user with unlimited disk space!${REMOVE}"
+    fi
+}
+
+[[ ${O_BWE} -ne 0 ]] && show_bw_exceed
+[[ ${O_DE} -ne 0 ]] && show_disk_exceed
+[[ ${O_BWU} -ne 0 ]] && show_bw_unlimited
+[[ ${O_DU} -ne 0 ]] && show_disk_unlimited
