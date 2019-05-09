@@ -1,2 +1,0 @@
-# show from line 6 to end
-cat /tmp/file.txt | sed -n '6,$p'
