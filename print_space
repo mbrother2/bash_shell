@@ -1,0 +1,9 @@
+# Print space
+printf_s(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s ' $(seq 1 $1)
+    fi
+}
