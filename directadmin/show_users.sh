@@ -90,7 +90,7 @@ show_single_account(){
         if [ $k -gt 0 ]
         then
             echo "+ List resellers were created by $1 $2:"
-            cat /tmp/tmp_$2 | sed 's/^/  /g'
+            cat /tmp/tmp_$2 | sed 's/^/  /g' | pr -4 -t
             rm -f /tmp/tmp_$2
         else
             echo "[Warning] No resellers were created by $2"
@@ -99,7 +99,7 @@ show_single_account(){
     if [[ -f ${USER_DIR}/$2/users.list ]] && [[ $(cat ${USER_DIR}/$2/users.list) != "" ]]
     then
         echo "+ List users were created by $1 $2:"
-        cat ${USER_DIR}/$2/users.list | sed 's/^/  /g'
+        cat ${USER_DIR}/$2/users.list | sed 's/^/  /g' | pr -4 -t
     else
         echo "[Warning] No users were created by $2"
     fi
