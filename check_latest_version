@@ -1,0 +1,81 @@
+#!/bin/bash
+FILE_DIR="/tmp/"
+TODAY=`date +"%d/%m/%Y"`
+TODAY2=`date +"%d\/%m\/%Y"`
+
+CENTOS=`lynx -dump http://isoredirect.centos.org/centos/7/isos/x86_64/ | grep "http://" | head -1 | cut -d"/" -f5`
+CLOUDLINUX=`curl -s https://download.cloudlinux.com/cloudlinux/7/iso/x86_64/ | grep "CHECKSUM\">CloudLinux" | cut -d"-" -f2`
+UBUNTU=`lynx -dump http://mirrors.nhanhoa.com/ubuntu-releases/disco/ | grep Ubuntu | head -1 | awk '{print $2}'`
+DEBIAN=`lynx -dump http://ftp.am.debian.org/debian/dists/stable/Release | grep "^Version:" | awk '{print $2}'`
+FREEBSD=`curl -s https://www.freebsd.org/where.html | grep "RELEASE</h1>" | head -1 | cut -d"-" -f1 | awk '{print $2}'`
+PFSENSE=`lynx -dump https://www.pfsense.org/download/ | grep -A 2 "Version:" | tail -1 | awk '{print $1}'`
+FEDORA=`curl -s https://fedoraproject.org/wiki/Releases | grep -A 3 "Current_Supported_Releases" | tail -1 | awk '{print $2}' | cut -d"<" -f1`
+
+DIRECTADMIN=`curl -s http://files.directadmin.com/services/custombuild/versions.txt | grep "^directadmin:" | cut -d":" -f2`
+CPANEL_STABLE=`lynx -dump http://httpupdate.cpanel.net/ | grep " STABLE " | awk '{print $2}'`
+CPANEL_RELEASE=`lynx -dump http://httpupdate.cpanel.net/ | grep " RELEASE " | awk '{print $2}'`
+PLESK=`curl -Ls -o /dev/null -w %{url_effective} https://docs.plesk.com/en-US/ | cut -d"/" -f5`
+PLESK=`lynx -dump https://docs.plesk.com/release-notes/${PLESK}/change-log/ | head -200 | grep -B 4 "Legend:" | head -1 | awk '{print $3}'`
+CYBERPANEL=`lynx -dump https://docs.cyberpanel.net/doku.php?id=change-log | grep " Stable" | head -1 | awk '{print $2}' | cut -d"]" -f2`
+VIRTUALMIN=`curl -s http://www.webmin.com/vchanges.html | grep "<b>Version" | head -1 | awk '{print $2}'`
+ISPCONFIG=`curl -s https://www.ispconfig.org/ispconfig/download/ | grep "<b>Current version:</b>" | awk '{print $3}' | cut -d"<" -f1`
+ISPMANAGER=`lynx -dump https://www.ispsystem.com/software/ispmanager/changelog | grep "Current stable version:" | awk '{print $4}' | cut -d"]" -f2`
+INTERWORX=`curl -s http://updates.interworx.com/release-stable | tail -1`
+
+LITESPEED_STABLE=`curl -s https://www.litespeedtech.com/products/litespeed-web-server/download | grep "(Stable)" | awk '{print $2}'`
+LITESPEED_LEGACY=`curl -s https://www.litespeedtech.com/products/litespeed-web-server/download | grep "(Legacy)" | head -1 | cut -d">" -f2 | awk '{print $2}'`
+NGINX=`curl -s --range 0-99 http://nginx.org/en/CHANGES | grep "Changes with nginx" | head -1 | awk '{print $4}'`
+NGINX_PLUS=`curl -s https://docs.nginx.com/nginx/releases/ | grep "NGINX&nbsp;Plus&nbsp;Release" | head -1 | awk '{print $5}'`
+APACHE=`curl -s https://httpd.apache.org/download.cgi | grep -A 2 "Stable Release - Latest Version:" | tail -1 | cut -d">" -f3 | cut -d"<" -f1`
+MARIADB=`curl -s https://mariadb.com/kb/en/library/new-and-old-releases/ | grep " MariaDB Server" | head -1 | grep "</h4>" | awk '{print $3}' | cut -d"<" -f1 | sed 's/\.//'`
+MARIADB=`curl -s https://mariadb.com/kb/en/library/changelogs-mariadb-${MARIADB}-series/ | grep " MariaDB " | grep "Changelog</h4>" | head -1 | awk '{print $2}'`
+MYSQL=`lynx -dump https://dev.mysql.com/downloads/ | grep "(Current Generally Available Release:" | head -1 | awk '{print $5}' | tr -dc '0-9.'`
+PHP=`lynx -dump https://www.php.net/downloads.php | grep "Current Stable" | awk '{print $4}'`
+PHPMYADMIN=`curl -s https://www.phpmyadmin.net/downloads/ | grep "<h2>phpMyAdmin " | awk '{print $2}' | cut -d"<" -f1`
+PUREFTP=`lynx -dump https://download.pureftpd.org/pub/pure-ftpd/releases/ | grep "pure-ftpd-" | tail -1 | cut -d"-" -f4 | sed "s/.tar\.gz.*//"`
+PROFTP=`curl -s http://www.proftpd.org/ | grep "Stable:" | tr -dc '0-9.'`
+VNSTAT=`curl -s --range 0-99 https://humdi.net/vnstat/CHANGES | head -1 | awk '{print $1}'`
+
+update_version(){
+    if [ "$2" != "" ]
+    then
+        OLD_VERSION=`cat ${FILE_DIR}/$3 | grep "$1:" | cut -d":" -f2`
+        if [ "${OLD_VERSION}" != "$2" ]
+        then
+            if [ "${OLD_VERSION}" == "" ]
+            then
+                echo "$1:$2:Unknown:${TODAY}" >> ${FILE_DIR}/$3
+            else
+                sed -i "s/$1:.*/$1:$2:${OLD_VERSION}:${TODAY2}/" ${FILE_DIR}/$3
+            fi
+        fi
+    fi
+}
+update_version "CentOS"           "${CENTOS}"           os.txt
+update_version "CloudLinux"       "${CLOUDLINUX}"       os.txt
+update_version "Ubuntu"           "${UBUNTU}"           os.txt
+update_version "Debian"           "${DEBIAN}"           os.txt
+update_version "FreeBSD"          "${FREEBSD}"          os.txt
+update_version "pfSense"          "${PFSENSE}"          os.txt
+update_version "Fedora"           "${FEDORA}"           os.txt
+update_version "DirectAdmin"      "${DIRECTADMIN}"      control_panel.txt
+update_version "cPanel Stable"    "${CPANEL_STABLE}"    control_panel.txt
+update_version "cPanel Release"   "${CPANEL_RELEASE}"   control_panel.txt
+update_version "Plesk"            "${PLESK}"            control_panel.txt
+update_version "CyberPanel"       "${CYBERPANEL}"       control_panel.txt
+update_version "Virtualmin"       "${VIRTUALMIN}"       control_panel.txt
+update_version "ISPConfig"        "${ISPCONFIG}"        control_panel.txt
+update_version "ISPmanager"       "${ISPMANAGER}"       control_panel.txt
+update_version "InterWorx"        "${INTERWORX}"        control_panel.txt
+update_version "LiteSpeed Stable" "${LITESPEED_STABLE}" services.txt
+update_version "LiteSpeed Legacy" "${LITESPEED_LEGACY}" services.txt
+update_version "Nginx"            "${NGINX}"            services.txt
+update_version "Nginx Plus"       "${NGINX_PLUS}"       services.txt
+update_version "Apache"           "${APACHE}"           services.txt
+update_version "MariaDB"          "${MARIADB}"          services.txt
+update_version "MySQL"            "${MYSQL}"            services.txt
+update_version "PHP"              "${PHP}"              services.txt
+update_version "phpMyAdmin"       "${PHPMYADMIN}"       services.txt
+update_version "Pure-FTPd"        "${PUREFTP}"          services.txt
+update_version "ProFTPD"          "${PROFTP}"           services.txt
+update_version "vnStat"           "${VNSTAT}"           services.txt
